@@ -320,6 +320,21 @@ class SprintDashboard:
         # Sprint Information Section
         st.subheader("📊 Sprint Information")
         
+        # Display key sprint data prominently
+        sprint_name = self.analyzer.iteration_info['name'] if self.analyzer.iteration_info else "Unknown Sprint"
+        total_work_items = len(self.analyzer.df) if self.analyzer and not self.analyzer.df.empty else 0
+        area_path = st.session_state.get('current_config', {}).get('area_path', 'Not specified')
+        
+        st.markdown(f"""
+        📅 **Selected Sprint:** {sprint_name}
+        
+        ✅ **Loaded {total_work_items} work items** from sprint: {sprint_name}
+        
+        🎯 **Area Path Filter:** {area_path}
+        """)
+        
+        st.divider()
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
