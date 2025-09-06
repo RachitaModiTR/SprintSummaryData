@@ -823,6 +823,214 @@ class SprintDashboard:
         else:
             st.warning("No data available to display.")
     
+    def display_getting_started_section(self, config: dict):
+        """Display comprehensive getting started section for first-time users"""
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: white;
+        ">
+            <h1 style="color: white; margin: 0; font-size: 3em;">📋 Getting Started</h1>
+            <p style="color: #E8E8E8; margin: 10px 0 0 0; font-size: 1.3em;">Welcome to Azure DevOps Sprint Dashboard</p>
+            <p style="color: #D0D0D0; margin: 5px 0 0 0; font-size: 1.1em;">Follow these steps to set up your dashboard and start analyzing sprint data</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Step-by-step guide
+        st.markdown("## 🚀 Quick Setup Guide")
+        
+        # Step 1: Authentication
+        step1_status = "✅" if config['pat'] else "⏳"
+        step1_color = "success" if config['pat'] else "info"
+        
+        with st.container():
+            st.markdown(f"### {step1_status} Step 1: Authentication")
+            if config['pat']:
+                st.success("✅ Personal Access Token configured successfully!")
+            else:
+                st.info("🔐 **Set up your Personal Access Token (PAT)**")
+                
+                with st.expander("📖 How to create a Personal Access Token", expanded=not config['pat']):
+                    st.markdown("""
+                    **Follow these steps to create your PAT:**
+                    
+                    1. 🌐 Go to your Azure DevOps organization
+                    2. 👤 Click on your profile picture (top right corner)
+                    3. 🔧 Select **"Personal Access Tokens"**
+                    4. ➕ Click **"+ New Token"**
+                    5. 📝 Give it a name (e.g., "Sprint Dashboard")
+                    6. 📅 Set expiration date (recommended: 90 days)
+                    7. 🔍 Under **Scopes**, select **"Work Items (Read)"**
+                    8. ✨ Click **"Create"**
+                    9. 📋 **Copy the token immediately** (you won't see it again!)
+                    10. 📥 Paste it in the sidebar under "Personal Access Token"
+                    
+                    **Required Permissions:**
+                    - ✅ Work Items: Read
+                    - ✅ Project and Team: Read
+                    """)
+                
+                st.markdown("👈 **Action Required:** Enter your PAT in the sidebar to continue")
+        
+        st.divider()
+        
+        # Step 2: Azure DevOps Settings
+        step2_status = "✅" if all([config['organization'], config['project'], config['team']]) else "⏳"
+        
+        with st.container():
+            st.markdown(f"### {step2_status} Step 2: Azure DevOps Settings")
+            if all([config['organization'], config['project'], config['team']]):
+                st.success(f"✅ Connected to: {config['organization']}/{config['project']}/{config['team']}")
+            else:
+                st.info("🏢 **Configure your Azure DevOps connection**")
+                
+                missing_fields = []
+                if not config['organization']:
+                    missing_fields.append("Organization")
+                if not config['project']:
+                    missing_fields.append("Project")
+                if not config['team']:
+                    missing_fields.append("Team")
+                
+                if missing_fields:
+                    st.warning(f"⚠️ Missing: {', '.join(missing_fields)}")
+                
+                with st.expander("ℹ️ Where to find these values", expanded=not all([config['organization'], config['project'], config['team']])):
+                    st.markdown("""
+                    **Finding your Azure DevOps settings:**
+                    
+                    **Organization:** 
+                    - Look at your Azure DevOps URL: `https://dev.azure.com/YOUR-ORG/`
+                    - Example: If URL is `https://dev.azure.com/tr-tax/`, then Organization = `tr-tax`
+                    
+                    **Project:**
+                    - This is your project name in Azure DevOps
+                    - Example: `TaxProf`, `MyProject`, etc.
+                    
+                    **Team:**
+                    - Usually the same as your project name
+                    - Or check under Project Settings > Teams
+                    """)
+                
+                st.markdown("👈 **Action Required:** Fill in Organization, Project, and Team in the sidebar")
+        
+        st.divider()
+        
+        # Step 3: Test Connection
+        step3_status = "✅" if st.session_state.get('connection_tested') else "⏳"
+        
+        with st.container():
+            st.markdown(f"### {step3_status} Step 3: Test Connection")
+            if st.session_state.get('connection_tested'):
+                st.success("✅ Connection tested successfully!")
+            else:
+                st.info("🔍 **Verify your connection**")
+                if config['pat'] and all([config['organization'], config['project'], config['team']]):
+                    st.markdown("👈 **Action Required:** Click 'Test Connection' button in the sidebar")
+                else:
+                    st.warning("⚠️ Complete Steps 1 & 2 first before testing connection")
+        
+        st.divider()
+        
+        # Step 4: Load Data
+        sprints_loaded = len(st.session_state.get('available_iterations', []))
+        areas_loaded = len(st.session_state.get('available_area_paths', []))
+        step4_status = "✅" if sprints_loaded > 0 else "⏳"
+        
+        with st.container():
+            st.markdown(f"### {step4_status} Step 4: Load Sprints and Area Paths")
+            if sprints_loaded > 0:
+                st.success(f"✅ Loaded {sprints_loaded} sprints and {areas_loaded} area paths")
+            else:
+                st.info("📊 **Load available data for selection**")
+                if st.session_state.get('connection_tested'):
+                    st.markdown("""
+                    **Load your data:**
+                    - 🔄 Click **'Load Sprints'** to fetch available sprints
+                    - 📁 Click **'Load Areas'** to fetch area paths under TaxProf
+                    
+                    **Or enter manually:**
+                    - ☑️ Uncheck the dropdown options to enter sprint/area path manually
+                    """)
+                    st.markdown("👈 **Action Required:** Click 'Load Sprints' and 'Load Areas' buttons in the sidebar")
+                else:
+                    st.warning("⚠️ Test connection first before loading data")
+        
+        st.divider()
+        
+        # Step 5: Select Sprint and Area Path
+        sprint_selected = config['selected_sprint'] != "Select a sprint..." and config['selected_sprint']
+        area_selected = bool(config['area_path'])
+        step5_status = "✅" if sprint_selected and area_selected else "⏳"
+        
+        with st.container():
+            st.markdown(f"### {step5_status} Step 5: Select Sprint and Area Path")
+            if sprint_selected and area_selected:
+                st.success(f"✅ Selected: {config['selected_sprint']} | Area: {config['area_path']}")
+            else:
+                st.info("🎯 **Choose your sprint and area path**")
+                
+                if not sprint_selected:
+                    if sprints_loaded > 0:
+                        st.markdown("👈 **Action Required:** Select a sprint from the dropdown in the sidebar")
+                    else:
+                        st.warning("⚠️ Load sprints first, or uncheck dropdown to enter manually")
+                
+                if not area_selected:
+                    st.markdown("👈 **Action Required:** Select or enter an area path in the sidebar")
+        
+        st.divider()
+        
+        # Step 6: Fetch Data
+        step6_status = "✅" if st.session_state.get('data_loaded') else "⏳"
+        
+        with st.container():
+            st.markdown(f"### {step6_status} Step 6: Fetch Data and View Dashboard")
+            if st.session_state.get('data_loaded'):
+                st.success("✅ Dashboard loaded successfully! Scroll down to view your sprint analytics.")
+            else:
+                st.info("📥 **Load your sprint dashboard**")
+                
+                can_fetch = (config['pat'] and all([config['organization'], config['project'], config['team']]) 
+                           and sprint_selected and area_selected)
+                
+                if can_fetch:
+                    st.markdown("👈 **Action Required:** Click 'Fetch Data' button in the sidebar to load your dashboard")
+                    st.success("🎉 All requirements met! Ready to fetch data.")
+                else:
+                    missing_steps = []
+                    if not config['pat']:
+                        missing_steps.append("Personal Access Token")
+                    if not all([config['organization'], config['project'], config['team']]):
+                        missing_steps.append("Azure DevOps Settings")
+                    if not sprint_selected:
+                        missing_steps.append("Sprint Selection")
+                    if not area_selected:
+                        missing_steps.append("Area Path")
+                    
+                    st.warning(f"⚠️ Complete these steps first: {', '.join(missing_steps)}")
+        
+        # Progress indicator
+        completed_steps = sum([
+            bool(config['pat']),
+            all([config['organization'], config['project'], config['team']]),
+            st.session_state.get('connection_tested', False),
+            sprints_loaded > 0,
+            sprint_selected and area_selected,
+            st.session_state.get('data_loaded', False)
+        ])
+        
+        progress = completed_steps / 6
+        st.progress(progress, text=f"Setup Progress: {completed_steps}/6 steps completed ({progress:.0%})")
+        
+        if completed_steps == 6:
+            st.balloons()
+            st.success("🎉 **Setup Complete!** Your dashboard is ready. Explore the tabs below for detailed sprint analytics.")
+    
     def run(self):
         """Run the main dashboard application"""
         # Setup sidebar and get configuration
@@ -831,15 +1039,16 @@ class SprintDashboard:
         # Display header with current config
         self.display_header(config)
         
-        # Check if all required fields are filled
+        # Always show Getting Started section for better user guidance
+        self.display_getting_started_section(config)
+        
+        # Check if all required fields are filled and show appropriate messages
         if not config['pat']:
-            st.warning("⚠️ Please enter your Azure DevOps Personal Access Token in the sidebar to continue.")
-            st.info("👈 Use the sidebar to configure your connection settings.")
+            st.info("👆 **Next Step:** Enter your Personal Access Token in the sidebar (Step 1 above)")
             return
         
         if not all([config['organization'], config['project'], config['team']]):
-            st.warning("⚠️ Please fill in all Azure DevOps settings (Organization, Project, Team) in the sidebar.")
-            st.info("👈 Use the sidebar to configure your connection settings.")
+            st.info("👆 **Next Step:** Complete your Azure DevOps settings in the sidebar (Step 2 above)")
             return
         
         # Check if data should be loaded
