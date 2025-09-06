@@ -360,103 +360,193 @@ class SprintDashboard:
             📊 **Work Item Types:** {len(type_distribution)} types
             """)
         
+        # Important Work Done Section
+        st.subheader("🎯 Important Work Completed")
+        
+        important_work = self.analyzer.get_important_work_analysis()
+        
+        if important_work and important_work.get('achievements'):
+            # Display key achievements in columns
+            achievement_cols = st.columns(min(len(important_work['achievements']), 4))
+            
+            for i, achievement in enumerate(important_work['achievements'][:4]):
+                with achievement_cols[i % 4]:
+                    st.metric(
+                        achievement['type'],
+                        f"{achievement['count']} items",
+                        f"{achievement['story_points']:.0f} SP"
+                    )
+            
+            # Detailed work breakdown
+            with st.expander("📋 Detailed Work Breakdown", expanded=False):
+                for achievement in important_work['achievements']:
+                    st.markdown(f"### {achievement['type']}")
+                    
+                    if achievement['items']:
+                        work_df = pd.DataFrame(achievement['items'])
+                        st.dataframe(
+                            work_df,
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                "title": st.column_config.TextColumn("Work Item", width="large"),
+                                "work_item_type": st.column_config.TextColumn("Type", width="small"),
+                                "assigned_to": st.column_config.TextColumn("Assignee", width="medium"),
+                                "story_points": st.column_config.NumberColumn("SP", width="small")
+                            }
+                        )
+                    st.divider()
+        else:
+            st.info("📋 No significant work completed yet in this sprint")
+        
         # Sprint Champion Section
         st.subheader("🏆 Sprint Champion")
         
-        if not assignee_workload.empty:
-            # Find the sprint champion (highest completion rate with significant work)
-            # Filter out people with very low story points to avoid skewing results
-            significant_work = assignee_workload[assignee_workload['story_points'] >= 3]
+        champion_analysis = self.analyzer.get_sprint_champion_analysis()
+        
+        if champion_analysis and champion_analysis.get('champion'):
+            champion = champion_analysis['champion']
+            achievements = champion_analysis['achievements']
+            team_avg = champion_analysis['team_average']
             
-            if not significant_work.empty:
-                # Sort by completion rate first, then by story points
-                champion_candidate = significant_work.loc[significant_work['completion_rate'].idxmax()]
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                # Champion profile
+                st.markdown(f"""
+                ### 🥇 {champion['assignee']}
                 
-                col1, col2 = st.columns([1, 2])
+                **🎯 Champion Score:** {champion['score']:.1f} points
                 
-                with col1:
-                    # Champion profile
-                    st.markdown(f"""
-                    ### 🥇 {champion_candidate['assigned_to']}
-                    
-                    **🎯 Completion Rate:** {champion_candidate['completion_rate']:.1f}%
-                    
-                    **📊 Story Points:** {champion_candidate['story_points']:.0f} SP
-                    
-                    **✅ Completed:** {champion_candidate['completed_story_points']:.0f} SP
-                    
-                    **📋 Total Items:** {champion_candidate['total_items']:.0f}
-                    """)
+                **📈 Completion Rate:** {champion['completion_rate']:.1f}%
                 
-                with col2:
-                    # Champion achievements
-                    st.markdown("### 🏅 Champion Achievements")
-                    
-                    achievements = []
-                    
-                    # High completion rate
-                    if champion_candidate['completion_rate'] >= 90:
-                        achievements.append("🌟 **Excellence Award** - 90%+ completion rate")
-                    elif champion_candidate['completion_rate'] >= 80:
-                        achievements.append("⭐ **High Performer** - 80%+ completion rate")
-                    
-                    # High story points
-                    max_story_points = assignee_workload['story_points'].max()
-                    if champion_candidate['story_points'] == max_story_points:
-                        achievements.append("💪 **Heavy Lifter** - Highest story points in sprint")
-                    
-                    # Consistent performer
-                    if champion_candidate['completed_items'] == champion_candidate['total_items']:
-                        achievements.append("🎯 **Perfect Score** - 100% items completed")
-                    
-                    # Team player (above average work)
-                    avg_story_points = assignee_workload['story_points'].mean()
-                    if champion_candidate['story_points'] > avg_story_points:
-                        achievements.append("🤝 **Team Player** - Above average workload")
-                    
-                    if achievements:
-                        for achievement in achievements:
-                            st.markdown(f"• {achievement}")
-                    else:
-                        st.markdown("• 🏆 **Sprint Champion** - Top performer this sprint!")
+                **📊 Story Points:** {champion['story_points']:.0f} SP
                 
-                # Champion comparison with team average
-                st.markdown("### 📊 Champion vs Team Average")
+                **✅ Completed:** {champion['completed_story_points']:.0f} SP
                 
-                team_avg_completion = assignee_workload['completion_rate'].mean()
-                team_avg_story_points = assignee_workload['story_points'].mean()
+                **📋 Total Items:** {champion['total_items']:.0f}
+                """)
                 
-                comp_col1, comp_col2, comp_col3 = st.columns(3)
+                # Work quality indicators
+                st.markdown("### 📊 Work Quality")
+                st.markdown(f"""
+                **🚨 High Priority:** {champion['high_priority_completed']} items
                 
-                with comp_col1:
-                    completion_diff = champion_candidate['completion_rate'] - team_avg_completion
-                    st.metric(
-                        "Completion Rate",
-                        f"{champion_candidate['completion_rate']:.1f}%",
-                        f"{completion_diff:+.1f}% vs team avg"
+                **💪 Significant Work:** {champion['significant_items_completed']} items
+                
+                **🐛 Bug Fixes:** {champion['bug_fixes']} items
+                
+                **🔄 Work Types:** {len(champion['work_types'])} different types
+                """)
+            
+            with col2:
+                # Champion achievements
+                st.markdown("### 🏅 Champion Achievements")
+                
+                if achievements:
+                    for achievement in achievements:
+                        st.markdown(f"• {achievement}")
+                else:
+                    st.markdown("• 🏆 **Sprint Champion** - Top performer this sprint!")
+                
+                # Sample work done
+                if champion.get('sample_work'):
+                    st.markdown("### 🔍 Sample Work Completed")
+                    sample_df = pd.DataFrame(champion['sample_work'])
+                    st.dataframe(
+                        sample_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "title": st.column_config.TextColumn("Work Item", width="large"),
+                            "work_item_type": st.column_config.TextColumn("Type", width="small"),
+                            "story_points": st.column_config.NumberColumn("SP", width="small"),
+                            "priority": st.column_config.NumberColumn("Priority", width="small")
+                        }
                     )
-                
-                with comp_col2:
-                    sp_diff = champion_candidate['story_points'] - team_avg_story_points
+            
+            # Champion comparison with team average
+            st.markdown("### 📊 Champion vs Team Average")
+            
+            comp_col1, comp_col2, comp_col3, comp_col4 = st.columns(4)
+            
+            with comp_col1:
+                completion_diff = champion['completion_rate'] - team_avg['completion_rate']
+                st.metric(
+                    "Completion Rate",
+                    f"{champion['completion_rate']:.1f}%",
+                    f"{completion_diff:+.1f}% vs team avg"
+                )
+            
+            with comp_col2:
+                sp_diff = champion['story_points'] - team_avg['story_points']
+                st.metric(
+                    "Story Points",
+                    f"{champion['story_points']:.0f} SP",
+                    f"{sp_diff:+.1f} vs team avg"
+                )
+            
+            with comp_col3:
+                # Calculate champion's contribution to total sprint
+                total_completed_sp = summary_data.get('completed_story_points', 0)
+                contribution_pct = (champion['completed_story_points'] / total_completed_sp * 100) if total_completed_sp > 0 else 0
+                st.metric(
+                    "Sprint Contribution",
+                    f"{contribution_pct:.1f}%",
+                    "of completed work"
+                )
+            
+            with comp_col4:
+                # Champion score vs average (if we had other scores)
+                all_scores = champion_analysis.get('all_scores', [])
+                if len(all_scores) > 1:
+                    avg_score = sum(score['score'] for score in all_scores) / len(all_scores)
+                    score_diff = champion['score'] - avg_score
                     st.metric(
-                        "Story Points",
-                        f"{champion_candidate['story_points']:.0f} SP",
-                        f"{sp_diff:+.1f} vs team avg"
+                        "Champion Score",
+                        f"{champion['score']:.1f}",
+                        f"{score_diff:+.1f} vs team avg"
                     )
-                
-                with comp_col3:
-                    # Calculate champion's contribution to total sprint
-                    total_completed_sp = summary_data.get('completed_story_points', 0)
-                    contribution_pct = (champion_candidate['completed_story_points'] / total_completed_sp * 100) if total_completed_sp > 0 else 0
+                else:
                     st.metric(
-                        "Sprint Contribution",
-                        f"{contribution_pct:.1f}%",
-                        "of completed work"
+                        "Champion Score",
+                        f"{champion['score']:.1f}",
+                        "points earned"
                     )
-            else:
-                st.info("🏆 No champion data available - need team members with at least 3 story points")
+            
+            # Top contributors leaderboard
+            if len(champion_analysis.get('all_scores', [])) > 1:
+                st.markdown("### 🏅 Sprint Leaderboard")
+                
+                leaderboard_data = []
+                for i, contributor in enumerate(champion_analysis['all_scores'][:5]):  # Top 5
+                    leaderboard_data.append({
+                        'Rank': i + 1,
+                        'Contributor': contributor['assignee'],
+                        'Score': f"{contributor['score']:.1f}",
+                        'Completion Rate': f"{contributor['completion_rate']:.1f}%",
+                        'Story Points': f"{contributor['story_points']:.0f}",
+                        'High Priority': contributor['high_priority_completed'],
+                        'Bug Fixes': contributor['bug_fixes']
+                    })
+                
+                leaderboard_df = pd.DataFrame(leaderboard_data)
+                st.dataframe(
+                    leaderboard_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Rank": st.column_config.NumberColumn("🏆", width="small"),
+                        "Contributor": st.column_config.TextColumn("Contributor", width="medium"),
+                        "Score": st.column_config.TextColumn("Score", width="small"),
+                        "Completion Rate": st.column_config.TextColumn("Completion", width="small"),
+                        "Story Points": st.column_config.TextColumn("SP", width="small"),
+                        "High Priority": st.column_config.NumberColumn("🚨", width="small"),
+                        "Bug Fixes": st.column_config.NumberColumn("🐛", width="small")
+                    }
+                )
         else:
-            st.info("🏆 No team data available to determine sprint champion")
+            st.info("🏆 No champion data available - need team members with significant work completed")
         
         # Sprint Health Indicators
         st.subheader("🏥 Sprint Health Indicators")

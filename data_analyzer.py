@@ -312,3 +312,200 @@ class SprintAnalyzer:
         ).dt.days
         
         return blocked_items[['id', 'title', 'work_item_type', 'state', 'assigned_to', 'days_since_update']].sort_values('days_since_update', ascending=False)
+    
+    def get_important_work_analysis(self) -> Dict:
+        """
+        Analyze important work done during the sprint
+        
+        Returns:
+            Dictionary with important work analysis
+        """
+        if self.df.empty:
+            return {}
+        
+        completed_states = ['Done', 'Closed', 'Resolved']
+        completed_items = self.df[self.df['state'].isin(completed_states)].copy()
+        
+        # High priority completed work
+        high_priority_work = completed_items[completed_items['priority'] <= 2]
+        
+        # High story point items (significant work)
+        significant_work = completed_items[completed_items['story_points'] >= 5]
+        
+        # Work by type
+        work_by_type = completed_items.groupby('work_item_type').agg({
+            'id': 'count',
+            'story_points': 'sum',
+            'title': lambda x: list(x)[:5]  # Top 5 titles per type
+        }).rename(columns={'id': 'count', 'title': 'sample_titles'})
+        
+        # Key achievements
+        achievements = []
+        
+        if not high_priority_work.empty:
+            achievements.append({
+                'type': 'High Priority Work',
+                'count': len(high_priority_work),
+                'story_points': high_priority_work['story_points'].sum(),
+                'items': high_priority_work[['title', 'work_item_type', 'assigned_to', 'story_points']].to_dict('records')[:5]
+            })
+        
+        if not significant_work.empty:
+            achievements.append({
+                'type': 'Significant Features',
+                'count': len(significant_work),
+                'story_points': significant_work['story_points'].sum(),
+                'items': significant_work[['title', 'work_item_type', 'assigned_to', 'story_points']].to_dict('records')[:5]
+            })
+        
+        # Bug fixes
+        bug_fixes = completed_items[completed_items['work_item_type'].str.contains('Bug', case=False, na=False)]
+        if not bug_fixes.empty:
+            achievements.append({
+                'type': 'Bug Fixes',
+                'count': len(bug_fixes),
+                'story_points': bug_fixes['story_points'].sum(),
+                'items': bug_fixes[['title', 'work_item_type', 'assigned_to', 'story_points']].to_dict('records')[:5]
+            })
+        
+        # Features/User Stories
+        features = completed_items[completed_items['work_item_type'].str.contains('Feature|User Story|Story', case=False, na=False)]
+        if not features.empty:
+            achievements.append({
+                'type': 'Features & Stories',
+                'count': len(features),
+                'story_points': features['story_points'].sum(),
+                'items': features[['title', 'work_item_type', 'assigned_to', 'story_points']].to_dict('records')[:5]
+            })
+        
+        return {
+            'total_completed_items': len(completed_items),
+            'total_completed_story_points': completed_items['story_points'].sum(),
+            'work_by_type': work_by_type.to_dict('index'),
+            'achievements': achievements,
+            'high_priority_completed': len(high_priority_work),
+            'significant_work_completed': len(significant_work)
+        }
+    
+    def get_sprint_champion_analysis(self) -> Dict:
+        """
+        Determine sprint champion based on comprehensive work analysis
+        
+        Returns:
+            Dictionary with sprint champion analysis
+        """
+        if self.df.empty:
+            return {}
+        
+        assignee_workload = self.get_assignee_workload()
+        
+        if assignee_workload.empty:
+            return {}
+        
+        # Filter out unassigned and people with minimal work
+        significant_contributors = assignee_workload[
+            (assignee_workload['assigned_to'] != 'Unassigned') & 
+            (assignee_workload['story_points'] >= 3)
+        ].copy()
+        
+        if significant_contributors.empty:
+            return {}
+        
+        # Calculate champion score based on multiple factors
+        completed_states = ['Done', 'Closed', 'Resolved']
+        
+        champion_scores = []
+        for _, contributor in significant_contributors.iterrows():
+            assignee = contributor['assigned_to']
+            
+            # Get assignee's work details
+            assignee_work = self.df[self.df['assigned_to'] == assignee]
+            completed_work = assignee_work[assignee_work['state'].isin(completed_states)]
+            
+            # Scoring factors
+            completion_rate = contributor['completion_rate']
+            story_points = contributor['story_points']
+            completed_story_points = contributor['completed_story_points']
+            
+            # Quality factors
+            high_priority_completed = len(completed_work[completed_work['priority'] <= 2])
+            significant_items_completed = len(completed_work[completed_work['story_points'] >= 5])
+            bug_fixes = len(completed_work[completed_work['work_item_type'].str.contains('Bug', case=False, na=False)])
+            
+            # Calculate weighted score
+            score = (
+                completion_rate * 0.4 +  # 40% weight on completion rate
+                min(completed_story_points / 10 * 20, 30) +  # Up to 30 points for story points (capped)
+                high_priority_completed * 5 +  # 5 points per high priority item
+                significant_items_completed * 3 +  # 3 points per significant item
+                bug_fixes * 2  # 2 points per bug fix
+            )
+            
+            # Work quality analysis
+            work_types = completed_work['work_item_type'].value_counts().to_dict()
+            sample_work = completed_work[['title', 'work_item_type', 'story_points', 'priority']].to_dict('records')[:5]
+            
+            champion_scores.append({
+                'assignee': assignee,
+                'score': score,
+                'completion_rate': completion_rate,
+                'story_points': story_points,
+                'completed_story_points': completed_story_points,
+                'total_items': contributor['total_items'],
+                'completed_items': contributor['completed_items'],
+                'high_priority_completed': high_priority_completed,
+                'significant_items_completed': significant_items_completed,
+                'bug_fixes': bug_fixes,
+                'work_types': work_types,
+                'sample_work': sample_work
+            })
+        
+        # Sort by score to find champion
+        champion_scores.sort(key=lambda x: x['score'], reverse=True)
+        
+        if not champion_scores:
+            return {}
+        
+        champion = champion_scores[0]
+        
+        # Generate achievements based on work done
+        achievements = []
+        
+        if champion['completion_rate'] >= 90:
+            achievements.append("🌟 **Excellence Award** - 90%+ completion rate")
+        elif champion['completion_rate'] >= 80:
+            achievements.append("⭐ **High Performer** - 80%+ completion rate")
+        
+        if champion['high_priority_completed'] >= 3:
+            achievements.append("🚨 **Priority Master** - Completed multiple high-priority items")
+        elif champion['high_priority_completed'] >= 1:
+            achievements.append("🎯 **Priority Focus** - Completed high-priority work")
+        
+        if champion['significant_items_completed'] >= 2:
+            achievements.append("💪 **Feature Champion** - Delivered significant features")
+        
+        if champion['bug_fixes'] >= 3:
+            achievements.append("🐛 **Bug Crusher** - Fixed multiple bugs")
+        
+        if champion['completed_items'] == champion['total_items']:
+            achievements.append("🎯 **Perfect Score** - 100% items completed")
+        
+        # Check if they're the top in story points
+        max_story_points = significant_contributors['story_points'].max()
+        if champion['story_points'] == max_story_points:
+            achievements.append("💪 **Heavy Lifter** - Highest story points in sprint")
+        
+        # Work diversity
+        if len(champion['work_types']) >= 3:
+            achievements.append("🔄 **Versatile Contributor** - Worked on diverse item types")
+        
+        return {
+            'champion': champion,
+            'achievements': achievements,
+            'all_scores': champion_scores,
+            'team_average': {
+                'completion_rate': significant_contributors['completion_rate'].mean(),
+                'story_points': significant_contributors['story_points'].mean(),
+                'completed_story_points': significant_contributors['completed_story_points'].mean()
+            }
+        }
