@@ -1092,6 +1092,9 @@ class SprintDashboard:
             if self.load_data_with_config(config):
                 st.session_state.data_loaded = True
                 st.session_state.current_config = config
+                # Hide Getting Started guide when data is successfully loaded
+                st.session_state.show_getting_started = False
+                st.rerun()
             else:
                 st.session_state.data_loaded = False
                 return
