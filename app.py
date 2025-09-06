@@ -103,34 +103,63 @@ class SprintDashboard:
         # Sprint and Area Path Configuration
         st.sidebar.subheader("📊 Data Configuration")
         
-        # Initialize session state for iterations if not exists
+        # Initialize session state for iterations and area paths if not exists
         if 'available_iterations' not in st.session_state:
             st.session_state.available_iterations = []
+        if 'available_area_paths' not in st.session_state:
+            st.session_state.available_area_paths = []
         
-        # Sprint selection
+        # Sprint and Area Path loading
         if pat and organization and project and team:
-            # Try to fetch iterations if connection is available
-            if st.sidebar.button("🔄 Load Sprints"):
-                with st.spinner("Loading available sprints..."):
-                    try:
-                        temp_config = {
-                            'organization': organization,
-                            'project': project,
-                            'team': team,
-                            'base_url': AZURE_DEVOPS_CONFIG['base_url'],
-                            'api_version': AZURE_DEVOPS_CONFIG['api_version']
-                        }
-                        temp_client = AzureDevOpsClient(pat)
-                        temp_client.config = temp_config
-                        iterations = temp_client.get_iterations()
-                        
-                        if iterations:
-                            st.session_state.available_iterations = iterations
-                            st.sidebar.success(f"✅ Loaded {len(iterations)} sprints")
-                        else:
-                            st.sidebar.warning("No sprints found")
-                    except Exception as e:
-                        st.sidebar.error(f"Failed to load sprints: {str(e)}")
+            col1, col2 = st.sidebar.columns(2)
+            
+            with col1:
+                # Load Sprints button
+                if st.button("🔄 Load Sprints", use_container_width=True):
+                    with st.spinner("Loading available sprints..."):
+                        try:
+                            temp_config = {
+                                'organization': organization,
+                                'project': project,
+                                'team': team,
+                                'base_url': AZURE_DEVOPS_CONFIG['base_url'],
+                                'api_version': AZURE_DEVOPS_CONFIG['api_version']
+                            }
+                            temp_client = AzureDevOpsClient(pat)
+                            temp_client.config = temp_config
+                            iterations = temp_client.get_iterations()
+                            
+                            if iterations:
+                                st.session_state.available_iterations = iterations
+                                st.sidebar.success(f"✅ Loaded {len(iterations)} sprints")
+                            else:
+                                st.sidebar.warning("No sprints found")
+                        except Exception as e:
+                            st.sidebar.error(f"Failed to load sprints: {str(e)}")
+            
+            with col2:
+                # Load Area Paths button
+                if st.button("📁 Load Areas", use_container_width=True):
+                    with st.spinner("Loading area paths..."):
+                        try:
+                            temp_config = {
+                                'organization': organization,
+                                'project': project,
+                                'team': team,
+                                'base_url': AZURE_DEVOPS_CONFIG['base_url'],
+                                'api_version': AZURE_DEVOPS_CONFIG['api_version']
+                            }
+                            temp_client = AzureDevOpsClient(pat)
+                            temp_client.config = temp_config
+                            area_paths = temp_client.get_area_paths("TaxProf")
+                            
+                            if area_paths:
+                                st.session_state.available_area_paths = area_paths
+                                st.sidebar.success(f"✅ Loaded {len(area_paths)} area paths")
+                            else:
+                                st.sidebar.warning("No area paths found under TaxProf")
+                        except Exception as e:
+                            st.sidebar.error(f"Failed to load area paths: {str(e)}")
         
         # Sprint dropdown - show all available sprints
         sprint_options = ["Select a sprint..."]
@@ -185,12 +214,50 @@ class SprintDashboard:
                     for sprint in sprint_options[1:]:  # Skip "Select a sprint..."
                         st.write(f"• {sprint}")
         
-        # Area Path input
-        area_path = st.sidebar.text_input(
-            "Area Path",
-            value="TaxProf\\us\\taxAuto\\ADGE\\Prep",
-            help="Enter the area path to filter work items"
-        )
+        # Area Path selection
+        st.sidebar.markdown("**Area Path Selection:**")
+        
+        # Area path dropdown options
+        area_path_options = ["Select an area path..."]
+        default_area_index = 0
+        
+        if st.session_state.available_area_paths:
+            area_path_options.extend(st.session_state.available_area_paths)
+            
+            # Set default to the original default area path if it exists
+            default_area_path = "TaxProf\\us\\taxAuto\\ADGE\\Prep"
+            if default_area_path in st.session_state.available_area_paths:
+                default_area_index = st.session_state.available_area_paths.index(default_area_path) + 1
+        
+        # Toggle between dropdown and manual input for area path
+        use_area_dropdown = st.sidebar.checkbox("Use area path dropdown", value=True, help="Uncheck to manually enter area path")
+        
+        if use_area_dropdown and area_path_options and len(area_path_options) > 1:
+            # Use selectbox for loaded area paths
+            area_path = st.sidebar.selectbox(
+                "Select Area Path",
+                options=area_path_options,
+                index=default_area_index,
+                help="Select the area path to filter work items"
+            )
+            
+            # If "Select an area path..." is chosen, set to empty
+            if area_path == "Select an area path...":
+                area_path = ""
+        else:
+            # Manual text input for area path
+            area_path = st.sidebar.text_input(
+                "Area Path",
+                value="TaxProf\\us\\taxAuto\\ADGE\\Prep",
+                placeholder="Enter area path (e.g., TaxProf\\us\\taxAuto\\ADGE\\Prep)",
+                help="Enter the area path to filter work items"
+            )
+            
+            # Show available area paths as reference if any are loaded
+            if area_path_options and len(area_path_options) > 1:
+                with st.sidebar.expander("📁 Available Area Paths Reference", expanded=False):
+                    for path in area_path_options[1:]:  # Skip "Select an area path..."
+                        st.write(f"• {path}")
         
         # Fetch Data button
         fetch_data_disabled = (
@@ -226,8 +293,8 @@ class SprintDashboard:
             1. Enter your Azure DevOps settings
             2. Add your Personal Access Token
             3. Test the connection
-            4. Load available sprints
-            5. Select sprint and area path
+            4. Load available sprints and area paths
+            5. Select sprint and area path (or enter manually)
             6. Click Fetch Data to load dashboard
             """)
         

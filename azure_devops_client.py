@@ -259,6 +259,54 @@ class AzureDevOpsClient:
         
         return df
     
+    def get_area_paths(self, root_area_path: str = "TaxProf") -> List[str]:
+        """
+        Get all area paths under a specified root area path
+        
+        Args:
+            root_area_path: Root area path to search under (default: "TaxProf")
+            
+        Returns:
+            List of area path strings
+        """
+        try:
+            url = f"{self.config['base_url']}/{self.config['organization']}/{self.config['project']}/_apis/wit/classificationnodes/areas"
+            params = {
+                'api-version': self.config['api_version'],
+                '$depth': 10  # Get nested area paths up to 10 levels deep
+            }
+            
+            response = self._make_request(url, params)
+            
+            if not response:
+                return []
+            
+            area_paths = []
+            
+            def extract_area_paths(node, parent_path=""):
+                """Recursively extract area paths from the classification node tree"""
+                current_path = f"{parent_path}\\{node['name']}" if parent_path else node['name']
+                
+                # Only include paths that start with the root area path
+                if current_path.startswith(root_area_path):
+                    area_paths.append(current_path)
+                
+                # Process child nodes
+                for child in node.get('children', []):
+                    extract_area_paths(child, current_path)
+            
+            # Start extraction from the root node
+            extract_area_paths(response)
+            
+            # Sort area paths for better organization
+            area_paths.sort()
+            
+            return area_paths
+            
+        except Exception as e:
+            st.error(f"Failed to fetch area paths: {str(e)}")
+            return []
+    
     def test_connection(self) -> bool:
         """
         Test the connection to Azure DevOps
