@@ -1098,14 +1098,15 @@ class SprintDashboard:
         
         # Check if data is loaded and display dashboard
         if hasattr(st.session_state, 'data_loaded') and st.session_state.data_loaded and self.analyzer:
-            # Create tabs for different sections
-            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            # Create tabs for different sections including Getting Started as the last tab
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
                 "📈 Sprint Overview", 
                 "🔥 Burndown Analysis", 
                 "📋 Work Items", 
                 "👥 Team Analysis", 
                 "📊 Quality Metrics", 
-                "🔍 Raw Data"
+                "🔍 Raw Data",
+                "📋 Getting Started"
             ])
             
             with tab1:
@@ -1125,6 +1126,11 @@ class SprintDashboard:
             
             with tab6:
                 self.display_raw_data_tab()
+            
+            with tab7:
+                # Display Getting Started guide in the tab
+                config = self.setup_sidebar()  # Get current config for the guide
+                self.display_getting_started_section(config)
             
             # Footer
             st.markdown("---")
