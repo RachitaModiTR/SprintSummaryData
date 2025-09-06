@@ -296,9 +296,9 @@ class SprintDashboard:
         with col1:
             # Sprint dates and duration
             if self.analyzer.iteration_info:
-                start_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['startDate'])
-                end_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['finishDate'])
-                current_date = pd.to_datetime(datetime.now())
+                start_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['startDate']).tz_localize(None)
+                end_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['finishDate']).tz_localize(None)
+                current_date = pd.to_datetime(datetime.now()).tz_localize(None)
                 
                 # Calculate sprint progress
                 total_days = (end_date - start_date).days
