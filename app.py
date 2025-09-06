@@ -267,9 +267,6 @@ class SprintDashboard:
                 st.error("Selected sprint not found. Please load sprints first.")
                 return False
             
-            # Display current sprint info
-            st.info(f"📅 **Selected Sprint:** {selected_iteration['name']}")
-            
             # Get work items for selected iteration
             with st.spinner("Fetching work items..."):
                 iteration_path = selected_iteration['path']
@@ -282,8 +279,6 @@ class SprintDashboard:
             # Initialize analyzer
             self.analyzer = SprintAnalyzer(work_items, selected_iteration)
             
-            st.success(f"✅ Loaded {len(work_items)} work items from sprint: {selected_iteration['name']}")
-            st.info(f"🎯 **Area Path Filter:** {config['area_path']}")
             return True
             
         except Exception as e:
