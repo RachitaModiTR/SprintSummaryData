@@ -1039,16 +1039,41 @@ class SprintDashboard:
         # Display header with current config
         self.display_header(config)
         
-        # Always show Getting Started section for better user guidance
-        self.display_getting_started_section(config)
+        # Show Getting Started section only if data is not loaded
+        if not st.session_state.get('data_loaded', False):
+            # Show as a popup-style guide with option to dismiss
+            with st.container():
+                # Add a toggle to show/hide the getting started guide
+                if 'show_getting_started' not in st.session_state:
+                    st.session_state.show_getting_started = True
+                
+                # Show getting started guide if enabled
+                if st.session_state.show_getting_started:
+                    # Create columns for the dismiss button
+                    guide_col1, guide_col2 = st.columns([10, 1])
+                    
+                    with guide_col2:
+                        if st.button("✕", help="Hide Getting Started Guide", key="hide_guide"):
+                            st.session_state.show_getting_started = False
+                            st.rerun()
+                    
+                    with guide_col1:
+                        self.display_getting_started_section(config)
+                else:
+                    # Show a button to bring back the guide if hidden
+                    if st.button("📋 Show Getting Started Guide", help="Show setup instructions"):
+                        st.session_state.show_getting_started = True
+                        st.rerun()
         
         # Check if all required fields are filled and show appropriate messages
         if not config['pat']:
-            st.info("👆 **Next Step:** Enter your Personal Access Token in the sidebar (Step 1 above)")
+            if not st.session_state.get('data_loaded', False):
+                st.info("👆 **Next Step:** Enter your Personal Access Token in the sidebar")
             return
         
         if not all([config['organization'], config['project'], config['team']]):
-            st.info("👆 **Next Step:** Complete your Azure DevOps settings in the sidebar (Step 2 above)")
+            if not st.session_state.get('data_loaded', False):
+                st.info("👆 **Next Step:** Complete your Azure DevOps settings in the sidebar")
             return
         
         # Check if data should be loaded
