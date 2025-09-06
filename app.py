@@ -134,6 +134,8 @@ class SprintDashboard:
         
         # Sprint dropdown - filter to show only 2025 sprints
         sprint_options = ["Select a sprint..."]
+        default_sprint_index = 0
+        
         if st.session_state.available_iterations:
             # Filter sprints that start with "2025"
             filtered_iterations = [
@@ -142,13 +144,26 @@ class SprintDashboard:
             ]
             sprint_options.extend([iteration['name'] for iteration in filtered_iterations])
             
+            # Find current sprint and set as default
+            from datetime import timezone
+            current_date = datetime.now(timezone.utc)
+            
+            for i, iteration in enumerate(filtered_iterations):
+                start_date = datetime.fromisoformat(iteration['attributes']['startDate'].replace('Z', '+00:00'))
+                finish_date = datetime.fromisoformat(iteration['attributes']['finishDate'].replace('Z', '+00:00'))
+                
+                if start_date <= current_date <= finish_date:
+                    default_sprint_index = i + 1  # +1 because of "Select a sprint..." at index 0
+                    break
+            
             # Update session state to only include filtered iterations for later use
             st.session_state.filtered_iterations = filtered_iterations
         
         selected_sprint = st.sidebar.selectbox(
             "Sprint",
             options=sprint_options,
-            help="Select the sprint to analyze"
+            index=default_sprint_index,
+            help="Select the sprint to analyze (current sprint selected by default)"
         )
         
         # Area Path input
@@ -345,93 +360,103 @@ class SprintDashboard:
             📊 **Work Item Types:** {len(type_distribution)} types
             """)
         
-        # Detailed Analytics Section
-        st.subheader("📈 Detailed Sprint Analytics")
+        # Sprint Champion Section
+        st.subheader("🏆 Sprint Champion")
         
-        # Create tabs for different analytics views
-        overview_tab1, overview_tab2, overview_tab3 = st.tabs([
-            "🎯 Progress Tracking", 
-            "👥 Team Performance", 
-            "📊 Work Distribution"
-        ])
-        
-        with overview_tab1:
-            # Progress tracking with burndown preview
-            col1, col2 = st.columns([2, 1])
+        if not assignee_workload.empty:
+            # Find the sprint champion (highest completion rate with significant work)
+            # Filter out people with very low story points to avoid skewing results
+            significant_work = assignee_workload[assignee_workload['story_points'] >= 3]
             
-            with col1:
-                # Mini burndown chart
-                daily_progress = self.analyzer.get_daily_progress()
-                if not daily_progress.empty:
-                    burndown_fig = self.viz.create_burndown_chart(daily_progress)
-                    burndown_fig.update_layout(height=300, title="Sprint Burndown Preview")
-                    st.plotly_chart(burndown_fig, use_container_width=True)
-                else:
-                    st.info("📊 No burndown data available for this sprint")
-            
-            with col2:
-                # Progress metrics
-                st.markdown("**📊 Progress Metrics**")
+            if not significant_work.empty:
+                # Sort by completion rate first, then by story points
+                champion_candidate = significant_work.loc[significant_work['completion_rate'].idxmax()]
                 
-                # Story points progress bar
-                if summary_data.get('total_story_points', 0) > 0:
-                    sp_progress = summary_data.get('story_points_completion', 0) / 100
-                    st.progress(sp_progress, text=f"Story Points: {sp_progress*100:.1f}%")
+                col1, col2 = st.columns([1, 2])
                 
-                # Items progress bar
-                if summary_data.get('total_items', 0) > 0:
-                    items_progress = summary_data.get('completion_percentage', 0) / 100
-                    st.progress(items_progress, text=f"Work Items: {items_progress*100:.1f}%")
-                
-                # State breakdown
-                st.markdown("**📋 State Breakdown**")
-                state_dist = summary_data.get('state_distribution', {})
-                for state, count in state_dist.items():
-                    st.write(f"• **{state}:** {count} items")
-        
-        with overview_tab2:
-            # Team performance overview
-            if not assignee_workload.empty:
-                # Top performers
-                st.markdown("**🏆 Top Performers (by Story Points)**")
-                top_performers = assignee_workload.head(5)
-                
-                for idx, row in top_performers.iterrows():
-                    completion_rate = row.get('completion_rate', 0)
-                    color = "🟢" if completion_rate >= 80 else "🟡" if completion_rate >= 50 else "🔴"
+                with col1:
+                    # Champion profile
+                    st.markdown(f"""
+                    ### 🥇 {champion_candidate['assigned_to']}
                     
-                    st.write(f"{color} **{row['assigned_to']}**: {row['story_points']:.0f} SP "
-                            f"({row['completed_story_points']:.0f} completed, {completion_rate:.1f}%)")
+                    **🎯 Completion Rate:** {champion_candidate['completion_rate']:.1f}%
+                    
+                    **📊 Story Points:** {champion_candidate['story_points']:.0f} SP
+                    
+                    **✅ Completed:** {champion_candidate['completed_story_points']:.0f} SP
+                    
+                    **📋 Total Items:** {champion_candidate['total_items']:.0f}
+                    """)
                 
-                # Team workload chart
-                workload_fig = self.viz.create_assignee_workload_chart(assignee_workload)
-                workload_fig.update_layout(height=300, title="Team Workload Distribution")
-                st.plotly_chart(workload_fig, use_container_width=True)
+                with col2:
+                    # Champion achievements
+                    st.markdown("### 🏅 Champion Achievements")
+                    
+                    achievements = []
+                    
+                    # High completion rate
+                    if champion_candidate['completion_rate'] >= 90:
+                        achievements.append("🌟 **Excellence Award** - 90%+ completion rate")
+                    elif champion_candidate['completion_rate'] >= 80:
+                        achievements.append("⭐ **High Performer** - 80%+ completion rate")
+                    
+                    # High story points
+                    max_story_points = assignee_workload['story_points'].max()
+                    if champion_candidate['story_points'] == max_story_points:
+                        achievements.append("💪 **Heavy Lifter** - Highest story points in sprint")
+                    
+                    # Consistent performer
+                    if champion_candidate['completed_items'] == champion_candidate['total_items']:
+                        achievements.append("🎯 **Perfect Score** - 100% items completed")
+                    
+                    # Team player (above average work)
+                    avg_story_points = assignee_workload['story_points'].mean()
+                    if champion_candidate['story_points'] > avg_story_points:
+                        achievements.append("🤝 **Team Player** - Above average workload")
+                    
+                    if achievements:
+                        for achievement in achievements:
+                            st.markdown(f"• {achievement}")
+                    else:
+                        st.markdown("• 🏆 **Sprint Champion** - Top performer this sprint!")
+                
+                # Champion comparison with team average
+                st.markdown("### 📊 Champion vs Team Average")
+                
+                team_avg_completion = assignee_workload['completion_rate'].mean()
+                team_avg_story_points = assignee_workload['story_points'].mean()
+                
+                comp_col1, comp_col2, comp_col3 = st.columns(3)
+                
+                with comp_col1:
+                    completion_diff = champion_candidate['completion_rate'] - team_avg_completion
+                    st.metric(
+                        "Completion Rate",
+                        f"{champion_candidate['completion_rate']:.1f}%",
+                        f"{completion_diff:+.1f}% vs team avg"
+                    )
+                
+                with comp_col2:
+                    sp_diff = champion_candidate['story_points'] - team_avg_story_points
+                    st.metric(
+                        "Story Points",
+                        f"{champion_candidate['story_points']:.0f} SP",
+                        f"{sp_diff:+.1f} vs team avg"
+                    )
+                
+                with comp_col3:
+                    # Calculate champion's contribution to total sprint
+                    total_completed_sp = summary_data.get('completed_story_points', 0)
+                    contribution_pct = (champion_candidate['completed_story_points'] / total_completed_sp * 100) if total_completed_sp > 0 else 0
+                    st.metric(
+                        "Sprint Contribution",
+                        f"{contribution_pct:.1f}%",
+                        "of completed work"
+                    )
             else:
-                st.info("👥 No team workload data available")
-        
-        with overview_tab3:
-            # Work distribution analytics
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Work item type distribution
-                if not type_distribution.empty:
-                    type_fig = self.viz.create_work_item_type_chart(type_distribution)
-                    type_fig.update_layout(height=300, title="Work Item Types")
-                    st.plotly_chart(type_fig, use_container_width=True)
-                else:
-                    st.info("📊 No work item type data available")
-            
-            with col2:
-                # Priority distribution
-                priority_data = self.analyzer.get_priority_distribution()
-                if not priority_data.empty:
-                    priority_fig = self.viz.create_priority_distribution_chart(priority_data)
-                    priority_fig.update_layout(height=300, title="Priority Distribution")
-                    st.plotly_chart(priority_fig, use_container_width=True)
-                else:
-                    st.info("📊 No priority data available")
+                st.info("🏆 No champion data available - need team members with at least 3 story points")
+        else:
+            st.info("🏆 No team data available to determine sprint champion")
         
         # Sprint Health Indicators
         st.subheader("🏥 Sprint Health Indicators")
