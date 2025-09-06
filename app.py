@@ -1127,34 +1127,9 @@ class SprintDashboard:
             st.markdown("*Dashboard last updated: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "*")
         
         else:
-            # Show instructions when no data is loaded
-            st.info("📋 **Getting Started:**")
-            st.markdown("""
-            1. **Configure Settings**: Fill in your Azure DevOps organization, project, and team details
-            2. **Add Token**: Enter your Personal Access Token
-            3. **Test Connection**: Click the 'Test Connection' button to verify your settings
-            4. **Load Sprints**: Click 'Load Sprints' to fetch available sprints
-            5. **Select Sprint**: Choose the sprint you want to analyze
-            6. **Set Area Path**: Adjust the area path filter if needed
-            7. **Fetch Data**: Click 'Fetch Data' to load the dashboard
-            """)
-            
-            # Show current configuration status
-            with st.expander("🔍 Current Configuration Status", expanded=True):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write("**Azure DevOps Settings:**")
-                    st.write(f"✅ Organization: {config['organization']}" if config['organization'] else "❌ Organization: Not set")
-                    st.write(f"✅ Project: {config['project']}" if config['project'] else "❌ Project: Not set")
-                    st.write(f"✅ Team: {config['team']}" if config['team'] else "❌ Team: Not set")
-                    st.write(f"✅ PAT: {'Set' if config['pat'] else 'Not set'}")
-                
-                with col2:
-                    st.write("**Data Configuration:**")
-                    st.write(f"✅ Sprints Loaded: {len(st.session_state.get('available_iterations', []))}")
-                    st.write(f"✅ Sprint Selected: {config['selected_sprint']}" if config['selected_sprint'] != "Select a sprint..." else "❌ Sprint: Not selected")
-                    st.write(f"✅ Area Path: {config['area_path']}" if config['area_path'] else "❌ Area Path: Not set")
+            # When no data is loaded, the Getting Started guide is already shown above
+            # No need for additional instructions here since the comprehensive guide covers everything
+            pass
 
 
 def main():
