@@ -1017,11 +1017,11 @@ class SprintDashboard:
         # Progress indicator
         completed_steps = sum([
             bool(config['pat']),
-            all([config['organization'], config['project'], config['team']]),
-            st.session_state.get('connection_tested', False),
-            sprints_loaded > 0,
-            sprint_selected and area_selected,
-            st.session_state.get('data_loaded', False)
+            bool(all([config['organization'], config['project'], config['team']])),
+            bool(st.session_state.get('connection_tested', False)),
+            bool(sprints_loaded > 0),
+            bool(sprint_selected and area_selected),
+            bool(st.session_state.get('data_loaded', False))
         ])
         
         progress = completed_steps / 6
