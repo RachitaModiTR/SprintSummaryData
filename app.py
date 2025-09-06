@@ -43,7 +43,15 @@ class SprintDashboard:
         """
         st.sidebar.title("🔧 Configuration")
         
-        # Azure DevOps Settings
+        # Authentication Section
+        st.sidebar.subheader("🔐 Authentication")
+        pat = st.sidebar.text_input(
+            "Personal Access Token",
+            type="password",
+            help="Enter your Azure DevOps Personal Access Token"
+        )
+        
+        # Azure DevOps Settings Section
         st.sidebar.subheader("🏢 Azure DevOps Settings")
         
         # Organization input
@@ -67,16 +75,6 @@ class SprintDashboard:
             help="Azure DevOps team name"
         )
         
-        st.sidebar.divider()
-        
-        # Personal Access Token input
-        st.sidebar.subheader("🔐 Authentication")
-        pat = st.sidebar.text_input(
-            "Personal Access Token",
-            type="password",
-            help="Enter your Azure DevOps Personal Access Token"
-        )
-        
         # Test connection button
         if pat and st.sidebar.button("🔍 Test Connection"):
             with st.spinner("Testing connection..."):
@@ -98,9 +96,7 @@ class SprintDashboard:
                     st.sidebar.error("❌ Connection failed. Please check your settings.")
                     st.session_state.connection_tested = False
         
-        st.sidebar.divider()
-        
-        # Sprint and Area Path Configuration
+        # Data Configuration Section
         st.sidebar.subheader("📊 Data Configuration")
         
         # Initialize session state for iterations and area paths if not exists
@@ -185,14 +181,10 @@ class SprintDashboard:
             # Update session state to include all iterations for later use
             st.session_state.filtered_iterations = all_iterations
         
-        # Sprint selection with manual input option
-        st.sidebar.markdown("**Sprint Selection:**")
-        
-        # Toggle between dropdown and manual input
+        # Sprint selection
         use_dropdown = st.sidebar.checkbox("Use dropdown selection", value=True, help="Uncheck to manually enter sprint name")
         
         if use_dropdown and sprint_options and len(sprint_options) > 1:
-            # Use selectbox for loaded sprints
             selected_sprint = st.sidebar.selectbox(
                 "Select Sprint",
                 options=sprint_options,
@@ -200,7 +192,6 @@ class SprintDashboard:
                 help="Select the sprint to analyze (current sprint selected by default)"
             )
         else:
-            # Manual text input for sprint name
             selected_sprint = st.sidebar.text_input(
                 "Sprint Name",
                 value="",
@@ -208,44 +199,33 @@ class SprintDashboard:
                 help="Enter the exact sprint name or iteration path"
             )
             
-            # Show available sprints as reference if any are loaded
             if sprint_options and len(sprint_options) > 1:
-                with st.sidebar.expander("📋 Available Sprints Reference", expanded=False):
-                    for sprint in sprint_options[1:]:  # Skip "Select a sprint..."
+                with st.sidebar.expander("📋 Available Sprints", expanded=False):
+                    for sprint in sprint_options[1:]:
                         st.write(f"• {sprint}")
         
         # Area Path selection
-        st.sidebar.markdown("**Area Path Selection:**")
+        use_area_dropdown = st.sidebar.checkbox("Use area path dropdown", value=True, help="Uncheck to manually enter area path")
         
-        # Area path dropdown options
         area_path_options = ["Select an area path..."]
         default_area_index = 0
         
         if st.session_state.available_area_paths:
             area_path_options.extend(st.session_state.available_area_paths)
-            
-            # Set default to the original default area path if it exists
             default_area_path = "TaxProf\\us\\taxAuto\\ADGE\\Prep"
             if default_area_path in st.session_state.available_area_paths:
                 default_area_index = st.session_state.available_area_paths.index(default_area_path) + 1
         
-        # Toggle between dropdown and manual input for area path
-        use_area_dropdown = st.sidebar.checkbox("Use area path dropdown", value=True, help="Uncheck to manually enter area path")
-        
         if use_area_dropdown and area_path_options and len(area_path_options) > 1:
-            # Use selectbox for loaded area paths
             area_path = st.sidebar.selectbox(
                 "Select Area Path",
                 options=area_path_options,
                 index=default_area_index,
                 help="Select the area path to filter work items"
             )
-            
-            # If "Select an area path..." is chosen, set to empty
             if area_path == "Select an area path...":
                 area_path = ""
         else:
-            # Manual text input for area path
             area_path = st.sidebar.text_input(
                 "Area Path",
                 value="TaxProf\\us\\taxAuto\\ADGE\\Prep",
@@ -253,27 +233,19 @@ class SprintDashboard:
                 help="Enter the area path to filter work items"
             )
             
-            # Show available area paths as reference if any are loaded
             if area_path_options and len(area_path_options) > 1:
-                with st.sidebar.expander("📁 Available Area Paths Reference", expanded=False):
-                    for path in area_path_options[1:]:  # Skip "Select an area path..."
+                with st.sidebar.expander("📁 Available Area Paths", expanded=False):
+                    for path in area_path_options[1:]:
                         st.write(f"• {path}")
         
         # Fetch Data button
         fetch_data_disabled = (
-            not pat or 
-            not organization or 
-            not project or 
-            not team or 
-            selected_sprint == "Select a sprint..." or
-            not selected_sprint or  # Handle empty manual input
-            not area_path
+            not pat or not organization or not project or not team or 
+            selected_sprint == "Select a sprint..." or not selected_sprint or not area_path
         )
         
         if st.sidebar.button("📥 Fetch Data", disabled=fetch_data_disabled):
             st.session_state.fetch_data_clicked = True
-        
-        st.sidebar.divider()
         
         # Instructions
         with st.sidebar.expander("📖 Instructions", expanded=False):
