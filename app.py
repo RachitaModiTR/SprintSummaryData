@@ -132,23 +132,20 @@ class SprintDashboard:
                     except Exception as e:
                         st.sidebar.error(f"Failed to load sprints: {str(e)}")
         
-        # Sprint dropdown - filter to show only 2025 sprints
+        # Sprint dropdown - show all available sprints
         sprint_options = ["Select a sprint..."]
         default_sprint_index = 0
         
         if st.session_state.available_iterations:
-            # Filter sprints that start with "2025"
-            filtered_iterations = [
-                iteration for iteration in st.session_state.available_iterations 
-                if iteration['name'].startswith('2025')
-            ]
-            sprint_options.extend([iteration['name'] for iteration in filtered_iterations])
+            # Show all sprints (no filtering)
+            all_iterations = st.session_state.available_iterations
+            sprint_options.extend([iteration['name'] for iteration in all_iterations])
             
             # Find current sprint and set as default
             from datetime import timezone
             current_date = datetime.now(timezone.utc)
             
-            for i, iteration in enumerate(filtered_iterations):
+            for i, iteration in enumerate(all_iterations):
                 start_date = datetime.fromisoformat(iteration['attributes']['startDate'].replace('Z', '+00:00'))
                 finish_date = datetime.fromisoformat(iteration['attributes']['finishDate'].replace('Z', '+00:00'))
                 
@@ -156,8 +153,8 @@ class SprintDashboard:
                     default_sprint_index = i + 1  # +1 because of "Select a sprint..." at index 0
                     break
             
-            # Update session state to only include filtered iterations for later use
-            st.session_state.filtered_iterations = filtered_iterations
+            # Update session state to include all iterations for later use
+            st.session_state.filtered_iterations = all_iterations
         
         selected_sprint = st.sidebar.selectbox(
             "Sprint",
@@ -254,7 +251,7 @@ class SprintDashboard:
             self.client = AzureDevOpsClient(config['pat'])
             self.client.config = client_config
             
-            # Find selected iteration from filtered 2025 sprints
+            # Find selected iteration from all available sprints
             selected_iteration = None
             iterations_to_search = st.session_state.get('filtered_iterations', st.session_state.get('available_iterations', []))
             
