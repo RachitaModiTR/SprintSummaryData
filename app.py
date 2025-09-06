@@ -48,7 +48,8 @@ class SprintDashboard:
         pat = st.sidebar.text_input(
             "Personal Access Token",
             type="password",
-            help="Enter your Azure DevOps Personal Access Token"
+            help="Enter your Azure DevOps Personal Access Token",
+            key="sidebar_pat"
         )
         
         # Azure DevOps Settings Section
@@ -58,21 +59,24 @@ class SprintDashboard:
         organization = st.sidebar.text_input(
             "Organization",
             value=AZURE_DEVOPS_CONFIG['organization'],
-            help="Azure DevOps organization name"
+            help="Azure DevOps organization name",
+            key="sidebar_organization"
         )
         
         # Project input
         project = st.sidebar.text_input(
             "Project",
             value=AZURE_DEVOPS_CONFIG['project'],
-            help="Azure DevOps project name"
+            help="Azure DevOps project name",
+            key="sidebar_project"
         )
         
         # Team input
         team = st.sidebar.text_input(
             "Team",
             value=AZURE_DEVOPS_CONFIG['team'],
-            help="Azure DevOps team name"
+            help="Azure DevOps team name",
+            key="sidebar_team"
         )
         
         # Test connection button
@@ -196,7 +200,8 @@ class SprintDashboard:
                 "Sprint Name",
                 value="",
                 placeholder="Enter sprint name (e.g., Sprint 2024.1, 2024\\Sprint 1)",
-                help="Enter the exact sprint name or iteration path"
+                help="Enter the exact sprint name or iteration path",
+                key="sidebar_sprint_name"
             )
             
             if sprint_options and len(sprint_options) > 1:
@@ -230,7 +235,8 @@ class SprintDashboard:
                 "Area Path",
                 value="TaxProf\\us\\taxAuto\\ADGE\\Prep",
                 placeholder="Enter area path (e.g., TaxProf\\us\\taxAuto\\ADGE\\Prep)",
-                help="Enter the area path to filter work items"
+                help="Enter the area path to filter work items",
+                key="sidebar_area_path"
             )
             
             if area_path_options and len(area_path_options) > 1:
