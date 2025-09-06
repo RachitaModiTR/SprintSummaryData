@@ -132,10 +132,18 @@ class SprintDashboard:
                     except Exception as e:
                         st.sidebar.error(f"Failed to load sprints: {str(e)}")
         
-        # Sprint dropdown
+        # Sprint dropdown - filter to show only 2025 sprints
         sprint_options = ["Select a sprint..."]
         if st.session_state.available_iterations:
-            sprint_options.extend([iteration['name'] for iteration in st.session_state.available_iterations])
+            # Filter sprints that start with "2025"
+            filtered_iterations = [
+                iteration for iteration in st.session_state.available_iterations 
+                if iteration['name'].startswith('2025')
+            ]
+            sprint_options.extend([iteration['name'] for iteration in filtered_iterations])
+            
+            # Update session state to only include filtered iterations for later use
+            st.session_state.filtered_iterations = filtered_iterations
         
         selected_sprint = st.sidebar.selectbox(
             "Sprint",
@@ -231,13 +239,14 @@ class SprintDashboard:
             self.client = AzureDevOpsClient(config['pat'])
             self.client.config = client_config
             
-            # Find selected iteration
+            # Find selected iteration from filtered 2025 sprints
             selected_iteration = None
-            if st.session_state.available_iterations:
-                for iteration in st.session_state.available_iterations:
-                    if iteration['name'] == config['selected_sprint']:
-                        selected_iteration = iteration
-                        break
+            iterations_to_search = st.session_state.get('filtered_iterations', st.session_state.get('available_iterations', []))
+            
+            for iteration in iterations_to_search:
+                if iteration['name'] == config['selected_sprint']:
+                    selected_iteration = iteration
+                    break
             
             if not selected_iteration:
                 st.error("Selected sprint not found. Please load sprints first.")
@@ -267,30 +276,214 @@ class SprintDashboard:
             return False
     
     def display_sprint_overview(self):
-        """Display sprint overview section"""
+        """Display enhanced sprint overview section with comprehensive analytics"""
         st.header("📈 Sprint Overview")
         
-        # Get sprint summary
+        # Get comprehensive sprint data
         summary_data = self.analyzer.get_sprint_summary()
+        velocity_data = self.analyzer.get_velocity_data()
+        type_distribution = self.analyzer.get_work_item_type_distribution()
+        assignee_workload = self.analyzer.get_assignee_workload()
         
         # Display summary cards
         self.viz.create_sprint_summary_cards(summary_data)
         
-        # Sprint details
-        col1, col2 = st.columns(2)
+        # Sprint Information Section
+        st.subheader("📊 Sprint Information")
+        
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            # Sprint dates
+            # Sprint dates and duration
             if self.analyzer.iteration_info:
-                start_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['startDate']).strftime('%Y-%m-%d')
-                end_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['finishDate']).strftime('%Y-%m-%d')
-                st.info(f"📅 **Sprint Duration:** {start_date} to {end_date}")
+                start_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['startDate'])
+                end_date = pd.to_datetime(self.analyzer.iteration_info['attributes']['finishDate'])
+                current_date = pd.to_datetime(datetime.now())
+                
+                # Calculate sprint progress
+                total_days = (end_date - start_date).days
+                elapsed_days = min((current_date - start_date).days, total_days)
+                remaining_days = max(total_days - elapsed_days, 0)
+                progress_percentage = (elapsed_days / total_days * 100) if total_days > 0 else 0
+                
+                st.info(f"""
+                📅 **Sprint Duration:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}
+                
+                ⏱️ **Progress:** {elapsed_days}/{total_days} days ({progress_percentage:.1f}%)
+                
+                📈 **Remaining:** {remaining_days} days
+                """)
         
         with col2:
-            # Velocity info
-            velocity_data = self.analyzer.get_velocity_data()
+            # Velocity and completion metrics
             if velocity_data:
-                st.info(f"⚡ **Velocity:** {velocity_data.get('velocity_per_day', 0):.1f} SP/day")
+                completion_rate = velocity_data.get('completion_rate', 0)
+                velocity_per_day = velocity_data.get('velocity_per_day', 0)
+                
+                st.info(f"""
+                ⚡ **Velocity:** {velocity_per_day:.1f} SP/day
+                
+                ✅ **Completion Rate:** {completion_rate:.1f}%
+                
+                🎯 **Planned SP:** {velocity_data.get('planned_story_points', 0)}
+                
+                ✨ **Completed SP:** {velocity_data.get('completed_story_points', 0)}
+                """)
+        
+        with col3:
+            # Team and work item metrics
+            total_assignees = len(assignee_workload) if not assignee_workload.empty else 0
+            avg_items_per_person = summary_data.get('total_items', 0) / total_assignees if total_assignees > 0 else 0
+            
+            st.info(f"""
+            👥 **Team Size:** {total_assignees} members
+            
+            📋 **Avg Items/Person:** {avg_items_per_person:.1f}
+            
+            🔄 **In Progress:** {summary_data.get('in_progress_items', 0)} items
+            
+            📊 **Work Item Types:** {len(type_distribution)} types
+            """)
+        
+        # Detailed Analytics Section
+        st.subheader("📈 Detailed Sprint Analytics")
+        
+        # Create tabs for different analytics views
+        overview_tab1, overview_tab2, overview_tab3 = st.tabs([
+            "🎯 Progress Tracking", 
+            "👥 Team Performance", 
+            "📊 Work Distribution"
+        ])
+        
+        with overview_tab1:
+            # Progress tracking with burndown preview
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                # Mini burndown chart
+                daily_progress = self.analyzer.get_daily_progress()
+                if not daily_progress.empty:
+                    burndown_fig = self.viz.create_burndown_chart(daily_progress)
+                    burndown_fig.update_layout(height=300, title="Sprint Burndown Preview")
+                    st.plotly_chart(burndown_fig, use_container_width=True)
+                else:
+                    st.info("📊 No burndown data available for this sprint")
+            
+            with col2:
+                # Progress metrics
+                st.markdown("**📊 Progress Metrics**")
+                
+                # Story points progress bar
+                if summary_data.get('total_story_points', 0) > 0:
+                    sp_progress = summary_data.get('story_points_completion', 0) / 100
+                    st.progress(sp_progress, text=f"Story Points: {sp_progress*100:.1f}%")
+                
+                # Items progress bar
+                if summary_data.get('total_items', 0) > 0:
+                    items_progress = summary_data.get('completion_percentage', 0) / 100
+                    st.progress(items_progress, text=f"Work Items: {items_progress*100:.1f}%")
+                
+                # State breakdown
+                st.markdown("**📋 State Breakdown**")
+                state_dist = summary_data.get('state_distribution', {})
+                for state, count in state_dist.items():
+                    st.write(f"• **{state}:** {count} items")
+        
+        with overview_tab2:
+            # Team performance overview
+            if not assignee_workload.empty:
+                # Top performers
+                st.markdown("**🏆 Top Performers (by Story Points)**")
+                top_performers = assignee_workload.head(5)
+                
+                for idx, row in top_performers.iterrows():
+                    completion_rate = row.get('completion_rate', 0)
+                    color = "🟢" if completion_rate >= 80 else "🟡" if completion_rate >= 50 else "🔴"
+                    
+                    st.write(f"{color} **{row['assigned_to']}**: {row['story_points']:.0f} SP "
+                            f"({row['completed_story_points']:.0f} completed, {completion_rate:.1f}%)")
+                
+                # Team workload chart
+                workload_fig = self.viz.create_assignee_workload_chart(assignee_workload)
+                workload_fig.update_layout(height=300, title="Team Workload Distribution")
+                st.plotly_chart(workload_fig, use_container_width=True)
+            else:
+                st.info("👥 No team workload data available")
+        
+        with overview_tab3:
+            # Work distribution analytics
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Work item type distribution
+                if not type_distribution.empty:
+                    type_fig = self.viz.create_work_item_type_chart(type_distribution)
+                    type_fig.update_layout(height=300, title="Work Item Types")
+                    st.plotly_chart(type_fig, use_container_width=True)
+                else:
+                    st.info("📊 No work item type data available")
+            
+            with col2:
+                # Priority distribution
+                priority_data = self.analyzer.get_priority_distribution()
+                if not priority_data.empty:
+                    priority_fig = self.viz.create_priority_distribution_chart(priority_data)
+                    priority_fig.update_layout(height=300, title="Priority Distribution")
+                    st.plotly_chart(priority_fig, use_container_width=True)
+                else:
+                    st.info("📊 No priority data available")
+        
+        # Sprint Health Indicators
+        st.subheader("🏥 Sprint Health Indicators")
+        
+        health_col1, health_col2, health_col3, health_col4 = st.columns(4)
+        
+        with health_col1:
+            # Completion health
+            completion_rate = summary_data.get('completion_percentage', 0)
+            if completion_rate >= 80:
+                st.success(f"✅ **Completion:** {completion_rate:.1f}%\nExcellent progress!")
+            elif completion_rate >= 60:
+                st.warning(f"⚠️ **Completion:** {completion_rate:.1f}%\nOn track")
+            else:
+                st.error(f"🚨 **Completion:** {completion_rate:.1f}%\nNeeds attention")
+        
+        with health_col2:
+            # Velocity health
+            if velocity_data:
+                velocity_per_day = velocity_data.get('velocity_per_day', 0)
+                if velocity_per_day >= 2:
+                    st.success(f"🚀 **Velocity:** {velocity_per_day:.1f} SP/day\nHigh velocity")
+                elif velocity_per_day >= 1:
+                    st.info(f"⚡ **Velocity:** {velocity_per_day:.1f} SP/day\nGood pace")
+                else:
+                    st.warning(f"🐌 **Velocity:** {velocity_per_day:.1f} SP/day\nSlow progress")
+        
+        with health_col3:
+            # Team balance health
+            if not assignee_workload.empty:
+                workload_std = assignee_workload['story_points'].std()
+                workload_mean = assignee_workload['story_points'].mean()
+                balance_ratio = workload_std / workload_mean if workload_mean > 0 else 0
+                
+                if balance_ratio <= 0.3:
+                    st.success(f"⚖️ **Balance:** Well distributed\nLow variance")
+                elif balance_ratio <= 0.6:
+                    st.info(f"⚖️ **Balance:** Moderately balanced\nSome variance")
+                else:
+                    st.warning(f"⚖️ **Balance:** Uneven distribution\nHigh variance")
+        
+        with health_col4:
+            # Blocked items health
+            blocked_items = self.analyzer.get_blocked_items()
+            blocked_count = len(blocked_items) if not blocked_items.empty else 0
+            
+            if blocked_count == 0:
+                st.success("🚫 **Blocked:** 0 items\nNo blockers")
+            elif blocked_count <= 2:
+                st.warning(f"🚫 **Blocked:** {blocked_count} items\nMinor blockers")
+            else:
+                st.error(f"🚫 **Blocked:** {blocked_count} items\nMultiple blockers")
     
     def display_burndown_analysis(self):
         """Display burndown analysis section"""
