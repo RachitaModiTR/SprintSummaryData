@@ -156,12 +156,34 @@ class SprintDashboard:
             # Update session state to include all iterations for later use
             st.session_state.filtered_iterations = all_iterations
         
-        selected_sprint = st.sidebar.selectbox(
-            "Sprint",
-            options=sprint_options,
-            index=default_sprint_index,
-            help="Select the sprint to analyze (current sprint selected by default)"
-        )
+        # Sprint selection with manual input option
+        st.sidebar.markdown("**Sprint Selection:**")
+        
+        # Toggle between dropdown and manual input
+        use_dropdown = st.sidebar.checkbox("Use dropdown selection", value=True, help="Uncheck to manually enter sprint name")
+        
+        if use_dropdown and sprint_options and len(sprint_options) > 1:
+            # Use selectbox for loaded sprints
+            selected_sprint = st.sidebar.selectbox(
+                "Select Sprint",
+                options=sprint_options,
+                index=default_sprint_index,
+                help="Select the sprint to analyze (current sprint selected by default)"
+            )
+        else:
+            # Manual text input for sprint name
+            selected_sprint = st.sidebar.text_input(
+                "Sprint Name",
+                value="",
+                placeholder="Enter sprint name (e.g., Sprint 2024.1, 2024\\Sprint 1)",
+                help="Enter the exact sprint name or iteration path"
+            )
+            
+            # Show available sprints as reference if any are loaded
+            if sprint_options and len(sprint_options) > 1:
+                with st.sidebar.expander("📋 Available Sprints Reference", expanded=False):
+                    for sprint in sprint_options[1:]:  # Skip "Select a sprint..."
+                        st.write(f"• {sprint}")
         
         # Area Path input
         area_path = st.sidebar.text_input(
@@ -177,6 +199,7 @@ class SprintDashboard:
             not project or 
             not team or 
             selected_sprint == "Select a sprint..." or
+            not selected_sprint or  # Handle empty manual input
             not area_path
         )
         
@@ -260,9 +283,19 @@ class SprintDashboard:
                     selected_iteration = iteration
                     break
             
+            # If not found in loaded iterations, try to use the sprint name directly
             if not selected_iteration:
-                st.error("Selected sprint not found. Please load sprints first.")
-                return False
+                st.info(f"Sprint '{config['selected_sprint']}' not found in loaded iterations. Attempting to fetch data using the provided sprint name...")
+                
+                # Create a mock iteration object for manually entered sprint names
+                selected_iteration = {
+                    'name': config['selected_sprint'],
+                    'path': config['selected_sprint'],  # Use the sprint name as path
+                    'attributes': {
+                        'startDate': '2024-01-01T00:00:00Z',  # Default dates
+                        'finishDate': '2024-12-31T23:59:59Z'
+                    }
+                }
             
             # Get work items for selected iteration
             with st.spinner("Fetching work items..."):
@@ -270,7 +303,7 @@ class SprintDashboard:
                 work_items = self.client.get_work_items_by_iteration(iteration_path, config['area_path'])
                 
                 if not work_items:
-                    st.warning("No work items found for the selected sprint and area path.")
+                    st.warning("No work items found for the selected sprint and area path. Please verify the sprint name is correct.")
                     return False
             
             # Initialize analyzer
