@@ -328,28 +328,78 @@ class SprintDashboard:
                     selected_iteration = iteration
                     break
             
-            # If not found in loaded iterations, try to use the sprint name directly
+            # If not found in loaded iterations, try to load all iterations and search again
             if not selected_iteration:
-                st.info(f"Sprint '{config['selected_sprint']}' not found in loaded iterations. Attempting to fetch data using the provided sprint name...")
+                st.info(f"Sprint '{config['selected_sprint']}' not found in loaded iterations. Loading all available sprints...")
                 
-                # Create a mock iteration object for manually entered sprint names
-                selected_iteration = {
-                    'name': config['selected_sprint'],
-                    'path': config['selected_sprint'],  # Use the sprint name as path
-                    'attributes': {
-                        'startDate': '2024-01-01T00:00:00Z',  # Default dates
-                        'finishDate': '2024-12-31T23:59:59Z'
-                    }
-                }
+                try:
+                    # Try to load all iterations from Azure DevOps
+                    all_iterations = self.client.get_iterations()
+                    
+                    # Search in all iterations
+                    for iteration in all_iterations:
+                        if iteration['name'] == config['selected_sprint']:
+                            selected_iteration = iteration
+                            break
+                    
+                    if not selected_iteration:
+                        # Try different iteration path formats
+                        possible_paths = [
+                            config['selected_sprint'],  # Direct name
+                            f"{config['project']}\\{config['selected_sprint']}",  # Project\Sprint format
+                            f"TaxProf\\{config['selected_sprint']}",  # TaxProf\Sprint format
+                        ]
+                        
+                        st.warning(f"Sprint '{config['selected_sprint']}' not found in available iterations.")
+                        st.info("Trying different iteration path formats...")
+                        
+                        # Try each possible path format
+                        for path_attempt in possible_paths:
+                            st.info(f"Trying iteration path: {path_attempt}")
+                            work_items = self.client.get_work_items_by_iteration(path_attempt, config['area_path'])
+                            
+                            if work_items:
+                                st.success(f"✅ Found {len(work_items)} work items using path: {path_attempt}")
+                                # Create iteration object with successful path
+                                selected_iteration = {
+                                    'name': config['selected_sprint'],
+                                    'path': path_attempt,
+                                    'attributes': {
+                                        'startDate': '2024-01-01T00:00:00Z',  # Default dates
+                                        'finishDate': '2024-12-31T23:59:59Z'
+                                    }
+                                }
+                                break
+                        
+                        if not selected_iteration:
+                            # Show available iterations to help user
+                            if all_iterations:
+                                st.error("❌ Could not find the specified sprint. Available sprints:")
+                                for iteration in all_iterations[-10:]:  # Show last 10 sprints
+                                    st.write(f"• {iteration['name']} (Path: {iteration.get('path', 'N/A')})")
+                            else:
+                                st.error("❌ No iterations found. Please check your team configuration.")
+                            return False
+                    
+                except Exception as e:
+                    st.error(f"Failed to load iterations: {str(e)}")
+                    return False
             
             # Get work items for selected iteration
-            with st.spinner("Fetching work items..."):
-                iteration_path = selected_iteration['path']
-                work_items = self.client.get_work_items_by_iteration(iteration_path, config['area_path'])
-                
-                if not work_items:
-                    st.warning("No work items found for the selected sprint and area path. Please verify the sprint name is correct.")
-                    return False
+            if selected_iteration:
+                with st.spinner("Fetching work items..."):
+                    iteration_path = selected_iteration.get('path', selected_iteration['name'])
+                    work_items = self.client.get_work_items_by_iteration(iteration_path, config['area_path'])
+                    
+                    if not work_items:
+                        st.error(f"❌ No work items found for sprint '{config['selected_sprint']}' with area path '{config['area_path']}'")
+                        st.info("Please verify:")
+                        st.write("• Sprint name is correct")
+                        st.write("• Area path exists and contains work items")
+                        st.write("• Work items are assigned to the specified sprint")
+                        return False
+                    
+                    st.success(f"✅ Successfully loaded {len(work_items)} work items")
             
             # Initialize analyzer
             self.analyzer = SprintAnalyzer(work_items, selected_iteration)
@@ -358,6 +408,7 @@ class SprintDashboard:
             
         except Exception as e:
             st.error(f"Error loading data: {str(e)}")
+            st.error("Please check your configuration and try again.")
             return False
     
     def display_sprint_overview(self):
