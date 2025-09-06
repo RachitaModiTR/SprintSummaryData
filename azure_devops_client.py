@@ -86,28 +86,32 @@ class AzureDevOpsClient:
         
         return None
     
-    def get_work_items_by_iteration(self, iteration_path: str) -> List[Dict]:
+    def get_work_items_by_iteration(self, iteration_path: str, area_path: str = None) -> List[Dict]:
         """
         Get work items for a specific iteration
         
         Args:
             iteration_path: Path of the iteration
+            area_path: Area path to filter work items (optional)
             
         Returns:
             List of work item dictionaries
         """
-        # WIQL query to get work items in iteration with area path filter
-        wiql_query = f"""
+        # Build WIQL query with optional area path filter
+        base_query = f"""
         SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType],
                [System.AssignedTo], [System.CreatedDate], [System.ChangedDate],
                [Microsoft.VSTS.Scheduling.StoryPoints], [Microsoft.VSTS.Common.Priority],
                [System.Tags], [System.AreaPath], [System.IterationPath]
         FROM WorkItems
         WHERE [System.IterationPath] = '{iteration_path}'
-        AND [System.TeamProject] = '{self.config['project']}'
-        AND [System.AreaPath] UNDER 'TaxProf\\us\\taxAuto\\ADGE\\Prep'
-        ORDER BY [System.Id]
-        """
+        AND [System.TeamProject] = '{self.config['project']}'"""
+        
+        # Add area path filter if provided
+        if area_path:
+            base_query += f"\nAND [System.AreaPath] UNDER '{area_path}'"
+        
+        wiql_query = base_query + "\nORDER BY [System.Id]"
         
         url = f"{self.config['base_url']}/{self.config['organization']}/{self.config['project']}/_apis/wit/wiql"
         params = {'api-version': self.config['api_version']}
