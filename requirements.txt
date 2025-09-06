@@ -1,7 +1,7 @@
-streamlit>=1.32.0
-requests>=2.31.0
-pandas>=2.2.0
-plotly>=5.17.0
-python-dateutil>=2.8.2
-azure-devops>=7.1.0b3
-numpy>=1.24.0
+streamlit
+requests
+pandas
+plotly
+python-dateutil
+azure-devops
+numpy
