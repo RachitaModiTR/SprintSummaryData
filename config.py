@@ -19,38 +19,69 @@ DASHBOARD_CONFIG = {
     'initial_sidebar_state': 'expanded'
 }
 
-# Chart Colors
+# Chart Colors - Beautiful Pastel Palette
 CHART_COLORS = {
-    'primary': '#0078d4',
-    'secondary': '#106ebe',
-    'success': '#107c10',
-    'warning': '#ff8c00',
-    'danger': '#d13438',
-    'info': '#00bcf2',
-    'light': '#f3f2f1',
-    'dark': '#323130'
+    'primary': '#A8DADC',      # Soft teal
+    'secondary': '#F1FAEE',    # Cream white
+    'success': '#B8E6B8',     # Soft mint green
+    'warning': '#FFE5B4',     # Peach
+    'danger': '#FFB3BA',      # Soft pink
+    'info': '#B3D9FF',        # Light sky blue
+    'light': '#F8F9FA',       # Very light gray
+    'dark': '#6C757D',        # Soft gray
+    'purple': '#D8BFD8',      # Thistle
+    'coral': '#F5B7B1',       # Light coral
+    'lavender': '#E6E6FA',    # Lavender
+    'mint': '#AFEEEE',        # Pale turquoise
+    'rose': '#FFE4E1',        # Misty rose
+    'sage': '#C8D5B9',        # Sage green
+    'champagne': '#F7E7CE'    # Champagne
 }
 
-# Work Item Types
+# Pastel Color Palette for Charts
+PASTEL_PALETTE = [
+    '#A8DADC',  # Soft teal
+    '#F1FAEE',  # Cream white
+    '#B8E6B8',  # Soft mint green
+    '#FFE5B4',  # Peach
+    '#FFB3BA',  # Soft pink
+    '#B3D9FF',  # Light sky blue
+    '#D8BFD8',  # Thistle
+    '#F5B7B1',  # Light coral
+    '#E6E6FA',  # Lavender
+    '#AFEEEE',  # Pale turquoise
+    '#FFE4E1',  # Misty rose
+    '#C8D5B9',  # Sage green
+    '#F7E7CE',  # Champagne
+    '#DDA0DD',  # Plum
+    '#F0E68C'   # Khaki
+]
+
+# Work Item Types with Pastel Colors
 WORK_ITEM_TYPES = {
-    'User Story': {'color': '#0078d4', 'icon': '📖'},
-    'Bug': {'color': '#d13438', 'icon': '🐛'},
-    'Task': {'color': '#107c10', 'icon': '✅'},
-    'Feature': {'color': '#ff8c00', 'icon': '🚀'},
-    'Epic': {'color': '#5c2d91', 'icon': '🎯'},
-    'Test Case': {'color': '#00bcf2', 'icon': '🧪'}
+    'User Story': {'color': '#A8DADC', 'icon': '📖'},
+    'Bug': {'color': '#FFB3BA', 'icon': '🐛'},
+    'Task': {'color': '#B8E6B8', 'icon': '✅'},
+    'Feature': {'color': '#FFE5B4', 'icon': '🚀'},
+    'Epic': {'color': '#D8BFD8', 'icon': '🎯'},
+    'Test Case': {'color': '#B3D9FF', 'icon': '🧪'},
+    'Issue': {'color': '#F5B7B1', 'icon': '⚠️'},
+    'Requirement': {'color': '#E6E6FA', 'icon': '📋'},
+    'Story': {'color': '#AFEEEE', 'icon': '📚'}
 }
 
-# Work Item States
+# Work Item States with Pastel Colors
 WORK_ITEM_STATES = {
-    'New': {'color': '#605e5c', 'category': 'proposed'},
-    'Active': {'color': '#0078d4', 'category': 'inprogress'},
-    'Resolved': {'color': '#ff8c00', 'category': 'resolved'},
-    'Closed': {'color': '#107c10', 'category': 'completed'},
-    'Removed': {'color': '#a4262c', 'category': 'removed'},
-    'To Do': {'color': '#605e5c', 'category': 'proposed'},
-    'Doing': {'color': '#0078d4', 'category': 'inprogress'},
-    'Done': {'color': '#107c10', 'category': 'completed'}
+    'New': {'color': '#E6E6FA', 'category': 'proposed'},
+    'Active': {'color': '#A8DADC', 'category': 'inprogress'},
+    'Resolved': {'color': '#FFE5B4', 'category': 'resolved'},
+    'Closed': {'color': '#B8E6B8', 'category': 'completed'},
+    'Removed': {'color': '#FFB3BA', 'category': 'removed'},
+    'To Do': {'color': '#F1FAEE', 'category': 'proposed'},
+    'Doing': {'color': '#B3D9FF', 'category': 'inprogress'},
+    'Done': {'color': '#C8D5B9', 'category': 'completed'},
+    'In Progress': {'color': '#AFEEEE', 'category': 'inprogress'},
+    'Committed': {'color': '#F7E7CE', 'category': 'committed'}
 }
 
 # API Endpoints

@@ -292,7 +292,19 @@ class SprintDashboard:
     
     def display_sprint_overview(self):
         """Display enhanced sprint overview section with comprehensive analytics"""
-        st.header("📈 Sprint Overview")
+        # Beautiful header with gradient background effect
+        st.markdown("""
+        <div style="
+            background: linear-gradient(90deg, #A8DADC 0%, #F1FAEE 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        ">
+            <h1 style="color: #2E2E2E; margin: 0; font-size: 2.5em;">📈 Sprint Overview</h1>
+            <p style="color: #6C757D; margin: 5px 0 0 0; font-size: 1.1em;">Comprehensive sprint analytics and insights</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Get comprehensive sprint data
         summary_data = self.analyzer.get_sprint_summary()
@@ -300,8 +312,10 @@ class SprintDashboard:
         type_distribution = self.analyzer.get_work_item_type_distribution()
         assignee_workload = self.analyzer.get_assignee_workload()
         
-        # Display summary cards
-        self.viz.create_sprint_summary_cards(summary_data)
+        # Display summary cards with beautiful styling
+        st.markdown("### 📊 Sprint Metrics")
+        with st.container():
+            self.viz.create_sprint_summary_cards(summary_data)
         
         # Sprint Information Section
         st.subheader("📊 Sprint Information")

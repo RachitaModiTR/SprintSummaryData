@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import streamlit as st
 from typing import Dict, List
-from config import CHART_COLORS, WORK_ITEM_TYPES, WORK_ITEM_STATES
+from config import CHART_COLORS, WORK_ITEM_TYPES, WORK_ITEM_STATES, PASTEL_PALETTE
 
 
 class DashboardVisualizations:
@@ -19,6 +19,26 @@ class DashboardVisualizations:
         self.colors = CHART_COLORS
         self.work_item_types = WORK_ITEM_TYPES
         self.work_item_states = WORK_ITEM_STATES
+        self.pastel_palette = PASTEL_PALETTE
+        
+        # Common layout settings for all charts
+        self.common_layout = {
+            'font': {'family': 'Arial, sans-serif', 'size': 12, 'color': '#2E2E2E'},
+            'plot_bgcolor': 'rgba(0,0,0,0)',
+            'paper_bgcolor': 'rgba(0,0,0,0)',
+            'margin': {'l': 40, 'r': 40, 't': 60, 'b': 40},
+            'showlegend': True,
+            'legend': {
+                'orientation': 'h',
+                'yanchor': 'bottom',
+                'y': -0.2,
+                'xanchor': 'center',
+                'x': 0.5,
+                'bgcolor': 'rgba(255,255,255,0.8)',
+                'bordercolor': '#E0E0E0',
+                'borderwidth': 1
+            }
+        }
     
     def create_sprint_summary_cards(self, summary_data: Dict) -> None:
         """
@@ -63,7 +83,7 @@ class DashboardVisualizations:
     
     def create_burndown_chart(self, daily_progress: pd.DataFrame) -> go.Figure:
         """
-        Create burndown chart
+        Create beautiful burndown chart with pastel colors
         
         Args:
             daily_progress: DataFrame with daily progress data
@@ -74,15 +94,17 @@ class DashboardVisualizations:
         if daily_progress.empty:
             fig = go.Figure()
             fig.add_annotation(
-                text="No burndown data available",
+                text="📊 No burndown data available",
                 xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color=self.colors['dark'])
             )
+            fig.update_layout(**self.common_layout)
             return fig
         
         fig = go.Figure()
         
-        # Ideal burndown line
+        # Ideal burndown line with gradient fill
         total_points = daily_progress['total_story_points'].iloc[0]
         ideal_line = [total_points - (total_points * i / (len(daily_progress) - 1)) 
                      for i in range(len(daily_progress))]
@@ -91,36 +113,58 @@ class DashboardVisualizations:
             x=daily_progress['date'],
             y=ideal_line,
             mode='lines',
-            name='Ideal Burndown',
-            line=dict(color=self.colors['secondary'], dash='dash'),
-            hovertemplate='<b>Ideal</b><br>Date: %{x}<br>Remaining: %{y} SP<extra></extra>'
+            name='🎯 Ideal Burndown',
+            line=dict(color=self.colors['sage'], width=2, dash='dash'),
+            fill='tonexty',
+            fillcolor='rgba(200, 213, 185, 0.1)',
+            hovertemplate='<b>🎯 Ideal</b><br>📅 Date: %{x}<br>📊 Remaining: %{y} SP<extra></extra>'
         ))
         
-        # Actual burndown line
+        # Actual burndown line with markers
         fig.add_trace(go.Scatter(
             x=daily_progress['date'],
             y=daily_progress['remaining_story_points'],
             mode='lines+markers',
-            name='Actual Burndown',
-            line=dict(color=self.colors['primary'], width=3),
-            marker=dict(size=6),
-            hovertemplate='<b>Actual</b><br>Date: %{x}<br>Remaining: %{y} SP<extra></extra>'
+            name='📈 Actual Burndown',
+            line=dict(color=self.colors['primary'], width=4),
+            marker=dict(size=8, color=self.colors['primary'], 
+                       line=dict(width=2, color='white')),
+            fill='tozeroy',
+            fillcolor='rgba(168, 218, 220, 0.2)',
+            hovertemplate='<b>📈 Actual</b><br>📅 Date: %{x}<br>📊 Remaining: %{y} SP<extra></extra>'
         ))
         
+        # Add zero line
+        fig.add_hline(y=0, line_dash="dot", line_color=self.colors['success'], 
+                     annotation_text="🎉 Sprint Complete", annotation_position="bottom right")
+        
         fig.update_layout(
-            title='Sprint Burndown Chart',
-            xaxis_title='Date',
-            yaxis_title='Remaining Story Points',
+            **self.common_layout,
+            title={
+                'text': '🔥 Sprint Burndown Chart',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18, 'color': self.colors['dark']}
+            },
+            xaxis=dict(
+                title='📅 Date',
+                gridcolor='rgba(200,200,200,0.3)',
+                showgrid=True
+            ),
+            yaxis=dict(
+                title='📊 Remaining Story Points',
+                gridcolor='rgba(200,200,200,0.3)',
+                showgrid=True
+            ),
             hovermode='x unified',
-            showlegend=True,
-            height=400
+            height=450
         )
         
         return fig
     
     def create_work_item_type_chart(self, type_distribution: pd.DataFrame) -> go.Figure:
         """
-        Create work item type distribution chart
+        Create beautiful work item type distribution donut chart
         
         Args:
             type_distribution: DataFrame with work item type data
@@ -131,30 +175,57 @@ class DashboardVisualizations:
         if type_distribution.empty:
             fig = go.Figure()
             fig.add_annotation(
-                text="No work item data available",
+                text="📋 No work item data available",
                 xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color=self.colors['dark'])
             )
+            fig.update_layout(**self.common_layout)
             return fig
         
-        colors = [self.work_item_types.get(wt, {}).get('color', self.colors['primary']) 
-                 for wt in type_distribution['work_item_type']]
+        # Get colors and icons for work item types
+        colors = []
+        labels_with_icons = []
+        
+        for wt in type_distribution['work_item_type']:
+            wt_info = self.work_item_types.get(wt, {})
+            colors.append(wt_info.get('color', self.pastel_palette[len(colors) % len(self.pastel_palette)]))
+            icon = wt_info.get('icon', '📋')
+            labels_with_icons.append(f"{icon} {wt}")
         
         fig = go.Figure(data=[
             go.Pie(
-                labels=type_distribution['work_item_type'],
+                labels=labels_with_icons,
                 values=type_distribution['count'],
-                hole=0.4,
-                marker_colors=colors,
+                hole=0.5,
+                marker=dict(
+                    colors=colors,
+                    line=dict(color='white', width=3)
+                ),
                 textinfo='label+percent',
-                hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+                textfont=dict(size=12),
+                hovertemplate='<b>%{label}</b><br>📊 Count: %{value}<br>📈 Percentage: %{percent}<br>📋 Story Points: %{customdata}<extra></extra>',
+                customdata=type_distribution['story_points']
             )
         ])
         
+        # Add center text
+        fig.add_annotation(
+            text=f"<b>{type_distribution['count'].sum()}</b><br>Total Items",
+            x=0.5, y=0.5,
+            font=dict(size=16, color=self.colors['dark']),
+            showarrow=False
+        )
+        
         fig.update_layout(
-            title='Work Items by Type',
-            height=400,
-            showlegend=True
+            **self.common_layout,
+            title={
+                'text': '📊 Work Items by Type',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18, 'color': self.colors['dark']}
+            },
+            height=450
         )
         
         return fig
