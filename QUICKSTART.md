@@ -3,6 +3,20 @@
 ## 🚀 Getting Started in 5 Minutes
 
 ### Step 1: Install Dependencies
+
+**For Python 3.13 users (recommended approach):**
+```bash
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install with pre-compiled wheels
+pip install --upgrade pip
+pip install streamlit requests plotly python-dateutil azure-devops numpy
+pip install pandas --no-build-isolation
+```
+
+**For Python 3.8-3.12 users:**
 ```bash
 pip install -r requirements.txt
 ```
