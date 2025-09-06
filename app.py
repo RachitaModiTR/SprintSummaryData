@@ -825,23 +825,11 @@ class SprintDashboard:
     
     def display_getting_started_section(self, config: dict):
         """Display comprehensive getting started section for first-time users"""
-        st.markdown("""
-        <div style="
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            text-align: center;
-            color: white;
-        ">
-            <h1 style="color: white; margin: 0; font-size: 3em;">📋 Getting Started</h1>
-            <p style="color: #E8E8E8; margin: 10px 0 0 0; font-size: 1.3em;">Welcome to Azure DevOps Sprint Dashboard</p>
-            <p style="color: #D0D0D0; margin: 5px 0 0 0; font-size: 1.1em;">Follow these steps to set up your dashboard and start analyzing sprint data</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.header("📋 Getting Started")
+        st.markdown("Welcome to Azure DevOps Sprint Dashboard. Follow these steps to set up your dashboard:")
         
         # Step-by-step guide
-        st.markdown("## 🚀 Quick Setup Guide")
+        st.markdown("### 🚀 Quick Setup Guide")
         
         # Step 1: Authentication
         step1_status = "✅" if config['pat'] else "⏳"
