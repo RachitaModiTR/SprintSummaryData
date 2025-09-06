@@ -1066,23 +1066,26 @@ class SprintDashboard:
         
         # Check if data should be loaded
         should_load_data = (
-            hasattr(st.session_state, 'fetch_data_clicked') and 
-            st.session_state.fetch_data_clicked and
+            st.session_state.get('fetch_data_clicked', False) and
             config['selected_sprint'] != "Select a sprint..." and
             config['area_path']
         )
         
         if should_load_data:
-            # Reset the flag
+            # Reset the flag immediately
             st.session_state.fetch_data_clicked = False
             
             # Load data with new configuration
-            if self.load_data_with_config(config):
-                st.session_state.data_loaded = True
-                st.session_state.current_config = config
-            else:
-                st.session_state.data_loaded = False
-                return
+            with st.spinner("Loading dashboard data..."):
+                if self.load_data_with_config(config):
+                    st.session_state.data_loaded = True
+                    st.session_state.current_config = config
+                    st.success("✅ Data loaded successfully! Dashboard is ready.")
+                    st.rerun()  # Force immediate rerun to show dashboard
+                else:
+                    st.session_state.data_loaded = False
+                    st.error("❌ Failed to load data. Please check your configuration.")
+                    return
         
         # Check if data is loaded and display dashboard
         if hasattr(st.session_state, 'data_loaded') and st.session_state.data_loaded and self.analyzer:
@@ -1117,7 +1120,6 @@ class SprintDashboard:
             
             with tab7:
                 # Display Getting Started guide in the tab
-                config = self.setup_sidebar()  # Get current config for the guide
                 self.display_getting_started_section(config)
             
             # Footer
