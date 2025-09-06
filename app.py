@@ -273,17 +273,20 @@ class SprintDashboard:
                 }
             )
     
-    def display_raw_data(self):
-        """Display raw data section"""
-        with st.expander("🔍 Raw Data", expanded=False):
-            if self.analyzer and not self.analyzer.df.empty:
-                st.subheader("Work Items Data")
-                st.dataframe(
-                    self.analyzer.df,
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
+    def display_raw_data_tab(self):
+        """Display raw data in tab format"""
+        st.header("🔍 Raw Data")
+        
+        if self.analyzer and not self.analyzer.df.empty:
+            st.subheader("Work Items Data")
+            
+            # Display data summary
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Work Items", len(self.analyzer.df))
+            with col2:
+                st.metric("Columns", len(self.analyzer.df.columns))
+            with col3:
                 # Download button
                 csv = self.analyzer.df.to_csv(index=False)
                 st.download_button(
@@ -292,6 +295,25 @@ class SprintDashboard:
                     file_name=f"sprint_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv"
                 )
+            
+            st.divider()
+            
+            # Display the dataframe
+            st.dataframe(
+                self.analyzer.df,
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Data info
+            with st.expander("📊 Data Information", expanded=False):
+                st.write("**Column Information:**")
+                for col in self.analyzer.df.columns:
+                    non_null_count = self.analyzer.df[col].count()
+                    total_count = len(self.analyzer.df)
+                    st.write(f"- **{col}**: {non_null_count}/{total_count} non-null values")
+        else:
+            st.warning("No data available to display.")
     
     def run(self):
         """Run the main dashboard application"""
@@ -310,23 +332,33 @@ class SprintDashboard:
         if not self.load_data(pat):
             return
         
-        # Display dashboard sections
-        self.display_sprint_overview()
-        st.divider()
+        # Create tabs for different sections
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📈 Sprint Overview", 
+            "🔥 Burndown Analysis", 
+            "📋 Work Items", 
+            "👥 Team Analysis", 
+            "📊 Quality Metrics", 
+            "🔍 Raw Data"
+        ])
         
-        self.display_burndown_analysis()
-        st.divider()
+        with tab1:
+            self.display_sprint_overview()
         
-        self.display_work_item_analysis()
-        st.divider()
+        with tab2:
+            self.display_burndown_analysis()
         
-        self.display_team_analysis()
-        st.divider()
+        with tab3:
+            self.display_work_item_analysis()
         
-        self.display_quality_metrics()
-        st.divider()
+        with tab4:
+            self.display_team_analysis()
         
-        self.display_raw_data()
+        with tab5:
+            self.display_quality_metrics()
+        
+        with tab6:
+            self.display_raw_data_tab()
         
         # Footer
         st.markdown("---")
